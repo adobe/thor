@@ -229,11 +229,7 @@ Metrics.prototype.toJson = function toJson() {
  */
 Metrics.prototype.output = function(output) {
   if (output) {
-    fs.writeFile(output, JSON.stringify(this.json, null, 4), function(err) {
-      if (err) {
-        console.error(`Failed to write data ${err.message} : ${err.stack}`)
-      }
-    });
+    fs.writeFileSync(output, Buffer.from(JSON.stringify(this.json, null, 4)), {encoding: 'utf8', flag: 'w'});
   }
 };
 
