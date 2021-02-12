@@ -17,11 +17,13 @@ cli.usage('[options] ws://localhost')
    .option('-C, --concurrent <connections>', 'how many concurrent-connections per second', parseInt, 0)
    .option('-M, --messages <messages>', 'messages to be send per connection', parseInt, 1)
    .option('-P, --protocol <protocol>', 'WebSocket protocol version', parseInt, 13)
-   .option('-B, --buffer <size>', 'size of the messages that are send', parseInt, 1024)
+   .option('-B, --buffer <size>', 'size of the messages that are send', parseInt, 8)
    .option('-W, --workers <cpus>', 'workers to be spawned', parseInt, os.cpus().length)
    .option('-G, --generator <file>', 'custom message generators')
    .option('-M, --masked', 'send the messaged with a mask')
    .option('-b, --binary', 'send binary messages instead of utf-8')
+   .option("-o, --output <location>", "where to output the logs", function(data) { return data }, "/report/thor.out")
+   .option("-j, --json", "make it json", function(data) { return data }, false)
    .version(require('../package.json').version)
    .parse(process.argv);
 
@@ -226,5 +228,9 @@ process.once('SIGINT', function end() {
 
 process.once('exit', function summary() {
   live.stop();
-  metrics.established().stop().summary();
+  let stoppedMetrics = metrics.established().stop();
+
+  if (cli.json) {
+    stoppedMetrics.toJson().output(cli.output || "/report/thor.out");
+  }
 });
