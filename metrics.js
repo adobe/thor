@@ -214,7 +214,7 @@ Metrics.prototype.toJson = function toJson() {
 
 
     Object.keys(this.errors).forEach(function error(err) {
-      object.errors.append(this.errors[err] +'x', err);
+      object.errors.push(this.errors[err] +'x', err);
     }, this);
   }
 
