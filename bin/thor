@@ -16,6 +16,8 @@ cli.usage('[options] ws://localhost')
    .option('-A, --amount <connections>', 'the amount of persistent connections to generate', parseInt, 10000)
    .option('-C, --concurrent <connections>', 'how many concurrent-connections per second', parseInt, 0)
    .option('-M, --messages <messages>', 'messages to be send per connection', parseInt, 1)
+   .option('-K, --keepalive <value>', 'how much to keep a connection alive in ms', parseInt, 1)
+   .option('-E, --every <value>', 'send message every n ms', parseInt, 1)
    .option('-P, --protocol <protocol>', 'WebSocket protocol version', parseInt, 13)
    .option('-B, --buffer <size>', 'size of the messages that are send', parseInt, 8)
    .option('-W, --workers <cpus>', 'workers to be spawned', parseInt, os.cpus().length)
@@ -197,7 +199,7 @@ async.forEach(cli.args, function forEach(url, done) {
     ids[id] = 1;
 
     // Process the connections
-    worker.send({ url: url, size: cli.buffer, messages: cli.messages, id: id });
+    worker.send({ url: url, size: cli.buffer, messages: cli.messages, id: id, onceEvery: cli.every, keepalive: cli.keepalive});
     worker.once('open::'+ id, fn);
 
     // Add the worker back at the end of the round robin queue.

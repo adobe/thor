@@ -16,6 +16,7 @@ var masked = process.argv[4] === 'true'
   , binary = process.argv[5] === 'true'
   , protocol = +process.argv[3] || 13;
 
+
 process.on('message', function message(task) {
   var now = Date.now();
 
@@ -60,9 +61,19 @@ process.on('message', function message(task) {
 
     // Only write as long as we are allowed to send messages
     if (--task.messages) {
-      write(socket, task, task.id);
+      if (task.onceEvery != null) {
+        setTimeout(timeoutWriter(socket, task, task.id), task.onceEvery)
+      } else {
+        write(socket, task, task.id);
+      }
     } else {
-      socket.close();
+      if (task.keepalive != null) {
+        setTimeout(function() {
+          socket.close();
+        }, task.keepalive);
+      } else {
+        socket.close();
+      }
     }
   });
 
@@ -89,6 +100,12 @@ process.on('message', function message(task) {
   ++concurrent;
   connections[task.id] = socket;
 });
+
+function timeoutWriter(socket, task, id) {
+  return function() {
+    write(socket, task, id);
+  }
+}
 
 /**
  * Helper function from writing messages to the socket.
