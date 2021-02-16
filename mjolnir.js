@@ -61,16 +61,14 @@ process.on('message', function message(task) {
 
     // Only write as long as we are allowed to send messages
     if (--task.messages) {
-      if (task.onceEvery != null) {
+      if (task.onceEvery != 0) {
         setTimeout(timeoutWriter(socket, task, task.id), task.onceEvery)
       } else {
         write(socket, task, task.id);
       }
     } else {
-      if (task.keepalive != null) {
-        setTimeout(function() {
-          socket.close();
-        }, task.keepalive);
+      if (task.keepalive != 0) {
+        setTimeout(closeSocket(socket), task.keepalive);
       } else {
         socket.close();
       }
@@ -100,6 +98,12 @@ process.on('message', function message(task) {
   ++concurrent;
   connections[task.id] = socket;
 });
+
+function closeSocket(socket) {
+  return function() {
+    socket.close();
+  }
+}
 
 function timeoutWriter(socket, task, id) {
   return function() {
