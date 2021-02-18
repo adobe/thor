@@ -20,6 +20,7 @@ cli.usage('[options] ws://localhost')
    .option('-E, --every <value>', 'send message every n ms', parseInt, 0)
    .option('-P, --protocol <protocol>', 'WebSocket protocol version', parseInt, 13)
    .option('-B, --buffer <size>', 'size of the messages that are send', parseInt, 8)
+    .option('-r, --ramp_up <period>', 'ramp-up period in ms to start workers', parseInt, 0)
    .option('-W, --workers <cpus>', 'workers to be spawned', parseInt, os.cpus().length)
    .option('-G, --generator <file>', 'custom message generators')
    .option('-M, --masked', 'send the messaged with a mask')
@@ -199,7 +200,7 @@ async.forEach(cli.args, function forEach(url, done) {
     ids[id] = 1;
 
     // Process the connections
-    worker.send({ url: url, size: cli.buffer, messages: cli.messages, id: id, onceEvery: cli.every, keepalive: cli.keepalive});
+    worker.send({ url: url, size: cli.buffer, messages: cli.messages, id: id, onceEvery: cli.every, keepalive: cli.keepalive, rampUp: cli.ramp_up});
     worker.once('open::'+ id, fn);
 
     // Add the worker back at the end of the round robin queue.
