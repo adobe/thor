@@ -1,1 +1,5 @@
+thor.out
+logs/*
 node_modules
+.idea/*
+package-lock.json

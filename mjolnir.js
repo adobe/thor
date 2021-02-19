@@ -16,6 +16,7 @@ var masked = process.argv[4] === 'true'
   , binary = process.argv[5] === 'true'
   , protocol = +process.argv[3] || 13;
 
+
 process.on('message', function message(task) {
   var now = Date.now();
 
@@ -40,55 +41,84 @@ process.on('message', function message(task) {
   // End of the line, we are gonna start generating new connections.
   if (!task.url) return;
 
-  var socket = new Socket(task.url, {
-    protocolVersion: protocol
-  });
 
-  socket.on('open', function open() {
-    process.send({ type: 'open', duration: Date.now() - now, id: task.id, concurrent: concurrent });
-    write(socket, task, task.id);
 
-    // As the `close` event is fired after the internal `_socket` is cleaned up
-    // we need to do some hacky shit in order to tack the bytes send.
-  });
-
-  socket.on('message', function message(data) {
-    process.send({
-      type: 'message', latency: Date.now() - socket.last, concurrent: concurrent,
-      id: task.id
-    });
-
-    // Only write as long as we are allowed to send messages
-    if (--task.messages) {
-      write(socket, task, task.id);
-    } else {
-      socket.close();
-    }
-  });
-
-  socket.on('close', function close() {
-    var internal = socket._socket || {};
-
-    process.send({
-      type: 'close', id: task.id, concurrent: --concurrent,
-      read: internal.bytesRead || 0,
-      send: internal.bytesWritten || 0
-    });
-
-    delete connections[task.id];
-  });
-
-  socket.on('error', function error(err) {
-    process.send({ type: 'error', message: err.message, id: task.id, concurrent: --concurrent });
-
-    socket.close();
-    delete connections[task.id];
-  });
-
-  // Adding a new socket to our socket collection.
-  ++concurrent;
-  connections[task.id] = socket;
+  setTimeout(delayedStart(task, now), task.rampUp);
 });
+
+
+function delayedStart(task, now)  {
+  return function() {
+    var socket = new Socket(task.url, {
+      protocolVersion: protocol
+    });
+
+    socket.on('open', function open() {
+      process.send({type: 'open', duration: Date.now() - now, id: task.id, concurrent: concurrent});
+      write(socket, task, task.id);
+
+      // As the `close` event is fired after the internal `_socket` is cleaned up
+      // we need to do some hacky shit in order to tack the bytes send.
+    });
+
+    socket.on('message', function message(data) {
+      process.send({
+        type: 'message', latency: Date.now() - socket.last, concurrent: concurrent,
+        id: task.id
+      });
+
+      // Only write as long as we are allowed to send messages
+      if (--task.messages) {
+        if (task.onceEvery != 0) {
+          setTimeout(timeoutWriter(socket, task, task.id), task.onceEvery)
+        } else {
+          write(socket, task, task.id);
+        }
+      } else {
+        if (task.keepalive != 0) {
+          setTimeout(closeSocket(socket), task.keepalive);
+        } else {
+          socket.close();
+        }
+      }
+    });
+
+    socket.on('close', function close() {
+      var internal = socket._socket || {};
+
+      process.send({
+        type: 'close', id: task.id, concurrent: --concurrent,
+        read: internal.bytesRead || 0,
+        send: internal.bytesWritten || 0
+      });
+
+      delete connections[task.id];
+    });
+
+    socket.on('error', function error(err) {
+      process.send({type: 'error', message: err.message, id: task.id, concurrent: --concurrent});
+
+      socket.close();
+      delete connections[task.id];
+    });
+
+    // Adding a new socket to our socket collection.
+    ++concurrent;
+    connections[task.id] = socket;
+  }
+}
+
+function closeSocket(socket) {
+  return function() {
+    socket.close();
+  }
+}
+
+function timeoutWriter(socket, task, id) {
+  return function() {
+    write(socket, task, id);
+  }
+}
 
 /**
  * Helper function from writing messages to the socket.

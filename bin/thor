@@ -16,12 +16,17 @@ cli.usage('[options] ws://localhost')
    .option('-A, --amount <connections>', 'the amount of persistent connections to generate', parseInt, 10000)
    .option('-C, --concurrent <connections>', 'how many concurrent-connections per second', parseInt, 0)
    .option('-M, --messages <messages>', 'messages to be send per connection', parseInt, 1)
+   .option('-K, --keepalive <value>', 'how much to keep a connection alive in ms', parseInt, 0)
+   .option('-E, --every <value>', 'send message every n ms', parseInt, 0)
    .option('-P, --protocol <protocol>', 'WebSocket protocol version', parseInt, 13)
-   .option('-B, --buffer <size>', 'size of the messages that are send', parseInt, 1024)
+   .option('-B, --buffer <size>', 'size of the messages that are send', parseInt, 8)
+   .option('-r, --ramp_up <period>', 'ramp-up period in ms to start workers', parseInt, 0)
    .option('-W, --workers <cpus>', 'workers to be spawned', parseInt, os.cpus().length)
    .option('-G, --generator <file>', 'custom message generators')
    .option('-M, --masked', 'send the messaged with a mask')
    .option('-b, --binary', 'send binary messages instead of utf-8')
+   .option("-o, --output <location>", "where to output the logs", function(data) { return data }, "/report/thor.out")
+   .option("-j, --json", "make it json", function(data) { return data }, false)
    .version(require('../package.json').version)
    .parse(process.argv);
 
@@ -195,7 +200,7 @@ async.forEach(cli.args, function forEach(url, done) {
     ids[id] = 1;
 
     // Process the connections
-    worker.send({ url: url, size: cli.buffer, messages: cli.messages, id: id });
+    worker.send({ url: url, size: cli.buffer, messages: cli.messages, id: id, onceEvery: cli.every, keepalive: cli.keepalive, rampUp: cli.ramp_up});
     worker.once('open::'+ id, fn);
 
     // Add the worker back at the end of the round robin queue.
@@ -226,5 +231,9 @@ process.once('SIGINT', function end() {
 
 process.once('exit', function summary() {
   live.stop();
-  metrics.established().stop().summary();
+  let stoppedMetrics = metrics.established().stop();
+
+  if (cli.json) {
+    stoppedMetrics.toJson().output(cli.output || "/report/thor.out");
+  }
 });

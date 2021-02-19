@@ -3,6 +3,8 @@
 var Stats = require('fast-stats').Stats
   , colors = require('colors')
   , sugar = require('sugar')
+  , fs = require('fs')
+  , fsExtra = require('fs-extra')
   , table = require('tab');
 
 /**
@@ -120,6 +122,117 @@ Metrics.prototype.close = function close(data) {
   this.send += data.send;
 
   return this;
+};
+
+/**
+ * Generate a json summary of the metrics
+ *
+ * @returns {Object} the json output
+ * @api public
+ */
+Metrics.prototype.toJson = function toJson() {
+  let object = {
+    establishedDurationMs: this.timing.established,
+    testDurationMs: this.timing.duration,
+    noConnections: this.connections,
+    noDisconnect: this.disconnects,
+    noFailures: this.failures,
+    bytesTransferred: this.send.bytes(2),
+    bytesReceived: this.read.bytes(2),
+    errors: null,
+    details: {
+      handshaking: {
+        min:0,
+        mean:0,
+        stddev:0,
+        median:0,
+        max:0,
+        percentiles: {
+          "50": 0,
+          "66": 0,
+          "75": 0,
+          "80": 0,
+          "90": 0,
+          "95": 0,
+          "97": 0,
+          "98": 0,
+          "99": 0
+        }
+      },
+      latency: {
+        min:0,
+        mean:0,
+        stddev:0,
+        median:0,
+        max:0,
+        percentiles: {
+          "50": 0,
+          "66": 0,
+          "75": 0,
+          "80": 0,
+          "90": 0,
+          "95": 0,
+          "97": 0,
+          "98": 0,
+          "99": 0
+        }
+      }
+    }
+  };
+
+  // Up next is outputting the series.
+  let handshaking = this.handshaking
+      , latency = this.latency
+      , hrange = handshaking.range()
+      , lrange = latency.range();
+
+
+  /* handshaking */
+  object.details.handshaking.min = hrange[0].toFixed();
+  object.details.handshaking.mean = handshaking.amean().toFixed();
+  object.details.handshaking.stddev = handshaking.stddev().toFixed();
+  object.details.handshaking.median = handshaking.median().toFixed();
+  object.details.handshaking.max = hrange[1].toFixed();
+
+  /* latency */
+  object.details.latency.min = lrange[0].toFixed();
+  object.details.latency.mean = latency.amean().toFixed();
+  object.details.latency.stddev = latency.stddev().toFixed();
+  object.details.latency.median = latency.median().toFixed();
+  object.details.latency.max = lrange[1].toFixed();
+
+  /* percentiles */
+  for (let key in object.details.handshaking.percentiles) {
+    object.details.handshaking.percentiles[key] = handshaking.percentile(parseInt(key, 10).toFixed())
+  }
+
+  for (let key in object.details.latency.percentiles) {
+    object.details.latency.percentiles[key] = latency.percentile(parseInt(key, 10).toFixed())
+  }
+
+  if (this.failures) {
+    object.errors = [];
+
+
+    Object.keys(this.errors).forEach(function error(err) {
+      object.errors.push(this.errors[err] +'x', err);
+    }, this);
+  }
+
+  this.json = object;
+  return this;
+};
+
+/**
+ * Write to file
+ *
+ * @api public
+ */
+Metrics.prototype.output = function(output) {
+  if (output) {
+    fsExtra.ensureFileSync(output);
+    fs.writeFileSync(output, Buffer.from(JSON.stringify(this.json, null, 4)), {encoding: 'utf8', flag: 'w'});
+  }
 };
 
 /**
