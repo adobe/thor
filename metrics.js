@@ -4,6 +4,7 @@ var Stats = require('fast-stats').Stats
   , colors = require('colors')
   , sugar = require('sugar')
   , fs = require('fs')
+  , fsExtra = require('fs-extra')
   , table = require('tab');
 
 /**
@@ -229,6 +230,7 @@ Metrics.prototype.toJson = function toJson() {
  */
 Metrics.prototype.output = function(output) {
   if (output) {
+    fsExtra.ensureFileSync(output);
     fs.writeFileSync(output, Buffer.from(JSON.stringify(this.json, null, 4)), {encoding: 'utf8', flag: 'w'});
   }
 };

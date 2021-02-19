@@ -11,11 +11,11 @@ ENV MESSAGE_SIZE=8
 ENV OUTPUT=/reports/thor.out
 ENV URL="wss://test-websockets-cookie-stage.adobe.io/upgrade-request"
 
+RUN mkdir /reports
+RUN touch /reports/report.json
+
 WORKDIR /thor
 COPY ./ ./
 RUN rm -rf ./node_modules
-RUN mkdir /reports
 RUN npm install
-
-RUN touch /reports/report.json
 ENTRYPOINT node ./bin/thor --buffer $MESSAGE_SIZE --ramp_up $WORKERS_RAMP_UP --workers $WORKERS --masked --keepalive $KEEPALIVE --every $ONCE_EVERY --concurrent $CONCURRENT --amount $CONNECTIONS --messages $MESSAGES --json --output $OUTPUT $URL
